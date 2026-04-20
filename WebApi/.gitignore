@@ -1,0 +1,32 @@
+cd C:\Users\Hp\Documents\SourceGeneratorDemo
+
+# Create .gitignore file
+@"
+# Visual Studio specific files
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+
+# Generated files (optional, but good to exclude)
+WebApi/obj/
+WebApi/bin/
+Generators/obj/
+Generators/bin/
+
+# User-specific files
+*.rsuser
+*.dbmdl
+
+# Others
+*.log
+*.tmp
+*.cache
+"@ | Set-Content .gitignore

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SignalR + Source Generator Demo</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 20px;
+        }
+
+        button {
+            margin: 5px;
+            cursor: pointer;
+        }
+
+        input {
+            margin: 5px;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Profile (SignalR + Source Generator Demo)</h1>
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <label>User ID: <input id="userId" value="john123" /></label>
+    <button id="connectBtn">Connect</button>
+    <hr />
+    <div>
+        <h3>Current Profile</h3>
+        <p>Name: <span id="name">-</span></p>
+        <p>Age: <span id="age">-</span></p>
+    </div>
+    <hr />
+    <div>
+        <input id="newName" placeholder="New Name" />
+        <button id="updateNameBtn">Update Name</button>
+        <br /><br />
+        <input id="newAge" type="number" placeholder="New Age" />
+        <button id="updateAgeBtn">Update Age</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        let connection = null;
+        const userIdInput = document.getElementById('userId');
+        const connectBtn = document.getElementById('connectBtn');
+        const nameSpan = document.getElementById('name');
+        const ageSpan = document.getElementById('age');
+        const newNameInput = document.getElementById('newName');
+        const newAgeInput = document.getElementById('newAge');
+        const statusDiv = document.getElementById('status');
+
+        connectBtn.addEventListener('click', async () => {
+            if (connection) {
+                await connection.stop();
+            }
+            const userId = userIdInput.value.trim();
+            if (!userId) return;
+
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/profileHub")
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            connection.on("ProfileUpdated", (profile) => {
+                nameSpan.innerText = profile.name;
+                ageSpan.innerText = profile.age;
+                console.log("Profile updated:", profile);
+            });
+
+            connection.onclose((error) => {
+                statusDiv.className = "status disconnected";
+                statusDiv.innerText = "Disconnected";
+                connectBtn.disabled = false;
+                console.log("Connection closed:", error);
+            });
+
+            try {
+                await connection.start();
+                await connection.invoke("JoinUserGroup", userId);
+
+                statusDiv.className = "status connected";
+                statusDiv.innerText = "Connected";
+                connectBtn.disabled = true;
+
+                // FIXED: Removed template literals that were causing the regex error
+                const response = await fetch('/api/profile/' + userId);
+                const data = await response.json();
+                nameSpan.innerText = data.name;
+                ageSpan.innerText = data.age;
+
+                console.log("Connected and joined group for user:", userId);
+            } catch (err) {
+                console.error("Connection failed:", err);
+                statusDiv.className = "status disconnected";
+                statusDiv.innerText = "Connection failed";
+            }
+        });
+
+        updateNameBtn.addEventListener('click', async () => {
+            const userId = userIdInput.value.trim();
+            const newName = newNameInput.value;
+            if (!userId || !newName) return;
+            try {
+                // FIXED: Using string concatenation instead of template literals
+                const response = await fetch('/api/profile/' + userId + '/name', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newName)
+                });
+                if (response.ok) {
+                    newNameInput.value = '';
+                }
+            } catch (err) {
+                console.error("Update failed:", err);
+            }
+        });
+
+        updateAgeBtn.addEventListener('click', async () => {
+            const userId = userIdInput.value.trim();
+            const newAge = parseInt(newAgeInput.value);
+            if (!userId || isNaN(newAge)) return;
+            try {
+                // FIXED: Using string concatenation instead of template literals
+                const response = await fetch('/api/profile/' + userId + '/age', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newAge)
+                });
+                if (response.ok) {
+                    newAgeInput.value = '';
+                }
+            } catch (err) {
+                console.error("Update failed:", err);
+            }
+        });
+    </script>
+</body>
+</html>
